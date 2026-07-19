@@ -216,6 +216,28 @@ func TestGetChecksParsesCompletedAt(t *testing.T) {
 	}
 }
 
+func TestGetChecksErrorIncludesStderr(t *testing.T) {
+	t.Parallel()
+
+	host := New(githubTestCmdFactory(map[string]githubTestResponse{
+		"gh pr checks 123 --repo test/repo --json name,state,bucket,completedAt": {
+			stderr: "could not determine current branch: failed to run git: not on any branch\n",
+			code:   1,
+		},
+	}), nil, "", "test/repo")
+
+	checks, err := host.GetChecks(context.Background(), &scm.PR{Number: "123"})
+	if err == nil {
+		t.Fatal("GetChecks() error = nil, want CLI error")
+	}
+	if !strings.Contains(err.Error(), "could not determine current branch") {
+		t.Fatalf("GetChecks() error = %v, want gh's stderr included", err)
+	}
+	if checks != nil {
+		t.Fatalf("GetChecks() checks = %+v, want nil", checks)
+	}
+}
+
 func TestFetchFailedCheckLogsSelectsMatchingRunForHeadSHA(t *testing.T) {
 	t.Parallel()
 
